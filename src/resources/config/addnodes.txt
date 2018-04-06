@@ -1,0 +1,12 @@
+addnode=159.89.40.161
+addnode=35.186.144.221
+addnode=52.199.33.76
+addnode=18.216.125.20
+addnode=54.211.59.227
+addnode=104.31.64.31
+addnode=104.27.142.97
+addnode=142.44.143.182
+addnode=80.211.255.12
+addnode=18.194.142.46
+addnode=89.47.163.190
+addnode=35.194.186.70
