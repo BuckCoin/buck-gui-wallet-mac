@@ -125,7 +125,7 @@ extends JFrame
 	public ZCashUI(StartupProgressDialog progressDialog)
 			throws IOException, InterruptedException, WalletCallException
 	{
-		super("Buck Desktop GUI Wallet 1.1.0.5");
+		super("Buck Desktop GUI Wallet 2.0.4");
 
 		if (progressDialog != null)
 		{
@@ -781,7 +781,7 @@ extends JFrame
 					Math.abs(r.nextInt()));
 			configOut.println("");
 			configOut.println("rpcallowip=127.0.0.1");
-			configOut.println("rpcport=8023");
+			configOut.println("rpcport=5739");
 			configOut.println("# Well-known nodes to connect to (speeds up acquiring additional peers)");
 
 			for(String node : getAddNodes()) {

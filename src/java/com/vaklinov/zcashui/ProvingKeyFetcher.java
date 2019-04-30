@@ -32,8 +32,14 @@ public class ProvingKeyFetcher {
     
     private static final int PROVING_KEY_SIZE = 910173851;
     private static final String SHA256 = "8bc20a7f013b2b58970cddd2e7ea028975c88ae7ceb9259a5344a16bc2c0eef7";
-    private static final String pathURL = "https://storage.googleapis.com/btcp-sprout-key/sprout-proving.key";
-    //private static final String altPathURL = "https://zensystem.io/downloads/sprout-proving.key";
+    private static final String pathURL = "https://downloads.horizen.global/file/TrustedSetup/sprout-proving.key";
+    private static final int SPROUT_GROTH_SIZE = 725523612;
+    private static final String SHA256SG = "b685d700c60328498fbde589c8c7c484c722b788b265b72af448a5bf0ee55b50";
+    private static final String pathURLSG = "https://downloads.horizen.global/file/TrustedSetup/sprout-groth16.params";
+    private static final int SAPLING_SPEND_SIZE = 47958396;
+    private static final String SHA256SS = "8e48ffd23abb3a5fd9c5589204f32d9c31285a04b78096ba40a79b75677efc13";
+    private static final String pathURLSS = "https://downloads.horizen.global/file/TrustedSetup/sapling-spend.params";
+    // TODO: add backups
     
     public void fetchIfMissing(StartupProgressDialog parent) throws IOException {
         try {
@@ -63,9 +69,13 @@ public class ProvingKeyFetcher {
         zCashParams = zCashParams.getCanonicalFile();
         
         boolean needsFetch = false;
+        boolean needsFetchSG = false;
+        boolean needsFetchSS = false;
         if (!zCashParams.exists()) 
         {    
             needsFetch = true;
+            needsFetchSG = true;
+            needsFetchSS = true;
             zCashParams.mkdirs();
         }
         
@@ -76,9 +86,21 @@ public class ProvingKeyFetcher {
         copy(is,fos);
         fos.close();
         is = null;
+
+        // sapling output params is small, always copy it
+        File saplingOutputFile = new File(zCashParams,"sapling-output.params");
+        FileOutputStream fosB = new FileOutputStream(saplingOutputFile);
+        InputStream isB = ProvingKeyFetcher.class.getClassLoader().getResourceAsStream("keys/sapling-output.params");
+        copy(isB,fosB);
+        fosB.close();
+        isB = null;
         
         File provingKeyFile = new File(zCashParams,"sprout-proving.key");
         provingKeyFile = provingKeyFile.getCanonicalFile();
+        File sproutGrothFile = new File(zCashParams,"sprout-groth16.params");
+        sproutGrothFile = sproutGrothFile.getCanonicalFile();
+        File saplingSpendFile = new File(zCashParams,"sapling-spend.params");
+        saplingSpendFile = saplingSpendFile.getCanonicalFile();
         if (!provingKeyFile.exists()) 
         {
             needsFetch = true;
@@ -86,6 +108,23 @@ public class ProvingKeyFetcher {
         {
             needsFetch = true;
         } 
+
+        if (!sproutGrothFile.exists()) 
+        {
+            needsFetchSG = true;
+        } else if (sproutGrothFile.length() != SPROUT_GROTH_SIZE) 
+        {
+            needsFetchSG = true;
+        }
+
+        if (!saplingSpendFile.exists()) 
+        {
+            needsFetchSS = true;
+        } else if (saplingSpendFile.length() != SAPLING_SPEND_SIZE) 
+        {
+            needsFetchSS = true;
+        }  
+
         /*
          * We skip proving key verification every start - this is impractical.
          * If the proving key exists and is the correct size, then it should be OK.
@@ -95,17 +134,18 @@ public class ProvingKeyFetcher {
             needsFetch = !checkSHA256(provingKeyFile,parent);
         }*/
         
-        if (!needsFetch) 
+        if (!needsFetch && !needsFetchSG && !needsFetchSS) 
         {
             return;
         }
         
         JOptionPane.showMessageDialog(
         	parent, 
-        	"The wallet needs to download the Z cryptographic proving key (approx. 900 MB).\n" + 
+        	"The wallet needs to download the Z cryptographic proving keys (approx. 900 MB).\n" + 
         	"This will be done only once. Please be patient... Press OK to continue");
         
-        parent.setProgressText("Downloading proving key...");
+        parent.setProgressText("Downloading proving keys...");
+        if (needsFetch) {
         provingKeyFile.delete();
         OutputStream os = new BufferedOutputStream(new FileOutputStream(provingKeyFile));
         URL keyURL = new URL(pathURL);
@@ -115,7 +155,7 @@ public class ProvingKeyFetcher {
         try 
         {
         	is = urlc.getInputStream();
-            ProgressMonitorInputStream pmis = new ProgressMonitorInputStream(parent, "Downloading proving key", is);
+            ProgressMonitorInputStream pmis = new ProgressMonitorInputStream(parent, "Downloading proving keys", is);
             pmis.getProgressMonitor().setMaximum(PROVING_KEY_SIZE);
             pmis.getProgressMonitor().setMillisToPopup(10);
             
@@ -125,11 +165,66 @@ public class ProvingKeyFetcher {
         {
             try { if (is != null) is.close(); } catch (IOException ignore){}
         }
-        parent.setProgressText("Verifying downloaded proving key...");
+        parent.setProgressText("Verifying downloaded proving keys...");
         if (!checkSHA256(provingKeyFile, parent)) 
         {
-            JOptionPane.showMessageDialog(parent, "Failed to download proving key properly. Cannot continue!");
+            JOptionPane.showMessageDialog(parent, "Failed to download proving keys properly. Cannot continue!");
             System.exit(-4);
+        }
+        }
+        if (needsFetchSG) {
+        sproutGrothFile.delete();
+        OutputStream os = new BufferedOutputStream(new FileOutputStream(sproutGrothFile));
+        URL keyURL = new URL(pathURLSG);
+        URLConnection urlc = keyURL.openConnection();
+        urlc.setRequestProperty("User-Agent", "Wget/1.17.1 (linux-gnu)");        
+        
+        try 
+        {
+        	is = urlc.getInputStream();
+            ProgressMonitorInputStream pmis = new ProgressMonitorInputStream(parent, "Downloading proving keys", is);
+            pmis.getProgressMonitor().setMaximum(SPROUT_GROTH_SIZE);
+            pmis.getProgressMonitor().setMillisToPopup(10);
+            
+            copy(pmis,os);
+            os.close();
+        } finally 
+        {
+            try { if (is != null) is.close(); } catch (IOException ignore){}
+        }
+		ProgressMonitorInputStream pmis = new ProgressMonitorInputStream(parent,"Verifying proving key",is);
+        if (!checkSHA256SG(sproutGrothFile, parent)) 
+        {
+            JOptionPane.showMessageDialog(parent, "Failed to download proving keys properly. Cannot continue!");
+            System.exit(-4);
+        }
+        }
+        if (needsFetchSS) {
+        saplingSpendFile.delete();
+        OutputStream os = new BufferedOutputStream(new FileOutputStream(saplingSpendFile));
+        URL keyURL = new URL(pathURLSS);
+        URLConnection urlc = keyURL.openConnection();
+        urlc.setRequestProperty("User-Agent", "Wget/1.17.1 (linux-gnu)");        
+        
+        try 
+        {
+        	is = urlc.getInputStream();
+            ProgressMonitorInputStream pmis = new ProgressMonitorInputStream(parent, "Downloading proving keys", is);
+            pmis.getProgressMonitor().setMaximum(SAPLING_SPEND_SIZE);
+            pmis.getProgressMonitor().setMillisToPopup(10);
+            
+            copy(pmis,os);
+            os.close();
+        } finally 
+        {
+            try { if (is != null) is.close(); } catch (IOException ignore){}
+        }
+			ProgressMonitorInputStream pmis = new ProgressMonitorInputStream(parent,"Verifying proving key",is);
+        if (!checkSHA256SS(saplingSpendFile, parent)) 
+        {
+            JOptionPane.showMessageDialog(parent, "Failed to download proving keys properly. Cannot continue!");
+            System.exit(-4);
+        }
         }
     }
             
@@ -159,6 +254,44 @@ public class ProvingKeyFetcher {
             while(dis.read(temp) >= 0);
             byte [] digest = sha256.digest();
             return SHA256.equalsIgnoreCase(DatatypeConverter.printHexBinary(digest));
+        }
+    }
+
+    private static boolean checkSHA256SG(File sproutGroth, Component parent) throws IOException {
+        MessageDigest sha256;
+        try {
+            sha256 = MessageDigest.getInstance("SHA-256");
+        } catch (NoSuchAlgorithmException impossible) {
+            throw new IOException(impossible);
+        }
+        try (InputStream is = new BufferedInputStream(new FileInputStream(sproutGroth))) {
+            ProgressMonitorInputStream pmis = new ProgressMonitorInputStream(parent,"Verifying proving key",is);
+            pmis.getProgressMonitor().setMaximum(SPROUT_GROTH_SIZE);
+            pmis.getProgressMonitor().setMillisToPopup(10);
+            DigestInputStream dis = new DigestInputStream(pmis, sha256);
+            byte [] temp = new byte[0x1 << 13];
+            while(dis.read(temp) >= 0);
+            byte [] digest = sha256.digest();
+            return SHA256SG.equalsIgnoreCase(DatatypeConverter.printHexBinary(digest));
+        }
+    }
+
+    private static boolean checkSHA256SS(File saplingSpend, Component parent) throws IOException {
+        MessageDigest sha256;
+        try {
+            sha256 = MessageDigest.getInstance("SHA-256");
+        } catch (NoSuchAlgorithmException impossible) {
+            throw new IOException(impossible);
+        }
+        try (InputStream is = new BufferedInputStream(new FileInputStream(saplingSpend))) {
+            ProgressMonitorInputStream pmis = new ProgressMonitorInputStream(parent,"Verifying proving key",is);
+            pmis.getProgressMonitor().setMaximum(SAPLING_SPEND_SIZE);
+            pmis.getProgressMonitor().setMillisToPopup(10);
+            DigestInputStream dis = new DigestInputStream(pmis, sha256);
+            byte [] temp = new byte[0x1 << 13];
+            while(dis.read(temp) >= 0);
+            byte [] digest = sha256.digest();
+            return SHA256SS.equalsIgnoreCase(DatatypeConverter.printHexBinary(digest));
         }
     }
 }
