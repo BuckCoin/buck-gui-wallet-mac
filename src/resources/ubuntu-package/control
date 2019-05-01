@@ -1,8 +1,0 @@
-Package: buck-desktop-gui-wallet
-Version: 1.0.0
-Section: misc
-Priority: low
-Architecture: all
-Description: Buck Desktop GUI Wallet
-Maintainer: buck.red
-Depends: default-jdk, buck
